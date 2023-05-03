@@ -17,7 +17,7 @@ This allocator is used to allocate small fixed-size blocks of memory from a pre-
 ## <h2>2. Describe its characteristics, numbers, duration, and dynamics.</h2>
 #### *- Characteristics*
 -   The SplitAllocator implements two separate memory ranges, one for physical memory and one for virtual memory. By using the base class Allocate.cpp and a BitAllocator.cpp object called m_alloc.
--- 
+
 ```cpp
 Allocator::Result  SplitAllocator::allocate(Allocator::Range  &  phys, Allocator::Range  &  virt)`
 {
@@ -29,7 +29,8 @@ Allocator::Result  SplitAllocator::allocate(Allocator::Range  &  phys, Allocator
 		virt.alignment  =  phys.alignment;
 		}
 		return r;
-}```
+}
+```
 -   Uses a paging mechanism where memory is allocated in fixed-size pages.
 -   Supports sparse allocation where the allocator can allocate memory in non-contiguous chunks.
 -   Uses a callback function to report the allocated memory ranges in sparse allocation.
