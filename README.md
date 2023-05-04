@@ -620,10 +620,80 @@ Allocator::Result  PoolAllocator::releasePool(Pool  *pool)
 }
 ```
 ## <h2>1B. Describe its characteristics, numbers, duration, and dynamics.</h2>
-Inside the main class that manages the operating system is **Kernel.cpp**. Inside this class, memory is mapped and a
+- The **SplitAllocator.cpp** is used in throughout FreeNOS in various classes like **Kernel.cpp**, **Process.cpp**, and **ProcessShares.cpp**, it is used in tandem with an additional class called **MemoryContext.cpp**. 
+- The name of the class **MemoryContext.cpp**, provides the gist of what it does. It represents a memory context , which is a container for memory ranges and their associated physical and virtual addresses. This call provies the methods for allocating and deallocating memory, in addition to mapping physical memory to virtual memory. It does this by passing a **SplitAllocator.cpp** object and a **MemoryMap.cpp** object in its constructor. The **MemoryMap.cpp** object provides infromation about the memory layout of the operating system, and the **SplitAllocator.cpp** object does the allocating and deallocating of memory.
+```cpp
+MemoryContext::MemoryContext(MemoryMap *map, SplitAllocator *alloc)
+	: m_alloc(alloc)
+	, m_map(map)
+	, m_mapRangeSparseCallback(this, &MemoryContext::mapRangeSparseCallback)
+	, m_savedRange(ZERO)
+	, m_numSparsePages(ZERO)
+{
+}
+```
+- **MemoryContext.cpp** also provides functions for mapping the memory ranges provided by **SplitAllocator,cpp** as well. 
+- - Functions like `mapRangeContiguous()` and `mapRangeSparse()` allocate physical pages for the memory range as well mapping virtual pages to physical memory as well.
+- - `mapRangeContiguous()` does this by using an `Allocator::Range` object from **SplitAllocator.cpp**, by setting the address to zero, setting the size to the given range, and setting the alignment to the default pagesize. Upon successful allocation the functions sets a block of contigous pages to the allocated physical address. Once physical allocation is successful then it will insert the virtual pages by calling the map method and passing the corresponding virtual and physical addresses and access flags.
+```cpp
+MemoryContext::Result  MemoryContext::mapRangeContiguous(Memory::Range  *range)
+{
+	Result r = Success;
+	// Allocate a block of contiguous physical pages, if needed.
+	if (!range->phys)
+	{
+		Allocator::Range alloc_args;
+		alloc_args.address  =  0;
+		alloc_args.size  =  range->size;
+		alloc_args.alignment  = PAGESIZE;
+		if (m_alloc->allocate(alloc_args) !=  Allocator::Success)
+			return OutOfMemory; 
+		range->phys  =  alloc_args.address;
+	}
+	// Insert virtual page(s)
+	for (Size i =  0; i <  range->size; i += PAGESIZE)
+	{
+		if ((r =  map(range->virt  + i, range->phys  + i, range->access)) != Success)
+			break;
+	}
+	return r;
+}
+```
+ - - `mapRangeSparse()` follows the lead of `mapRangeContigous()` and uses an `Allocator::Range` object from **SplitAllocator.cpp**, but sets the address, and alignment to zero, and setting the range to the given size. It also allocates a set of non-contigous pages by saving the range as `m_savedRange`, and `_numSparsePages` to zero.  After doing so, it invokes a callback function called `mapRangeCallback()`,  that maps the newly allocated physical pages to a virtual address. This function does this by mapping the physical page to a virtual addres in virtual memory and updates the `Memory::Range` to reflect the new mapping, while also keeping track of the number of allocated pages.
+```cpp
+MemoryContext::Result  MemoryContext::mapRangeSparse(Memory::Range  *range)
+{
+	Allocator::Range alloc_args;
+	// Allocate a set of physical pages (non-contiguous)
+	m_savedRange = range;
+	m_numSparsePages =  0;
+	alloc_args.address  =  0;
+	alloc_args.size  =  range->size;
+	alloc_args.alignment  =  0;  
+	// This invokes our callback for each new page that is allocated
+	if (m_alloc->allocateSparse(alloc_args, &m_mapRangeSparseCallback) !=  Allocator::Success)
+		return OutOfMemory;
+	return Success;
+}
+void  MemoryContext::mapRangeSparseCallback(Address  *phys)
+{
+	Result r = Success;
+	for (Size i =  0; i <  8U  * PAGESIZE; i += PAGESIZE)
+	{
+		r =  map(m_savedRange->virt  + m_numSparsePages, (*phys) + i, m_savedRange->access);
+		if (r != Success)
+			break;  
+		m_numSparsePages += PAGESIZE;
+	}
+	assert(r == Success);
+}
+```
+- In addtion to these functions **
 
 PoolAllocator is used primarily in runtime
 #### *- Characteristics*
+ - Allocator.cpp and 
+#### *- Numbers*
 #### *- Duration*
 #### *- Dynamics*
 # <h1>2. Discussion and Analysis</h1>
