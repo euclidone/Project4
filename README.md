@@ -1,9 +1,7 @@
-**THIS WAS COMPILED WITH HELP FROM CHATGPT**
+# <h1>FreeNOS Memory Management System</h1>
 
-# <h1>1. FreeNOS Memory Management System</h1>
-
-## <h2>1A. Identify the specific memory management system used in FreeNOS.</h2>
-The specific memory management system used in FreeNOS is a type of segmentation memory management system. Using a series of allocator classes called **SplitAllocator.cpp**, **Allocator.cpp**, **BitAllocator.cpp**, **BubbleAllocator.cpp**, and **PoolAllocator.cpp**. The classes. **Allocator.cpp** and **BitAllocator.cpp** also derive functions from a class called **MemoryBlock.cpp**, which provides basic memory manipulation functions to copy and compare memory blocks. These classes make up the memory management system in FreeNOS.
+## <h2>Identify the specific memory management system used in FreeNOS and describe its characteristics, numbers, duration, and dynamics.</h2>
+The specific memory management system used in FreeNOS is a combination of segmentation and paging memory management system. Using a series of allocator classes called **SplitAllocator.cpp**, **Allocator.cpp**, **BitAllocator.cpp**, **BubbleAllocator.cpp**, and **PoolAllocator.cpp**. The memory classes involved are called **Memory.cpp**, **MemoryContext.cpp**, **MemoryMap.cpp**, and **MemoryChannel.cpp**. The size of memory block or pages all depend upon the default page size which is 4096 or 4k which provides basic memory manipulation functions to copy and compare memory blocks. These classes make up the memory management system in FreeNOS.
 #### *- SplitAllocator.cpp*
 - This allocator is used to allocate both physical and virtual memory, and is the primary allocator used in FreeNOS. It uses a split allocation scheme where physical memory is allocated separately from virtual memory. This allows for efficient use of physical memory by only mapping necessary parts of virtual memory to physical memory.
 -  -  Definition and initialization: `SplitAllocator` is defined with the following constructor, which initializes the object with a physical range, a virtual range, and a page size.
@@ -122,12 +120,6 @@ Allocator::Allocator(const Allocator::Range range)
     assert(m_range.alignment >= sizeof(u32));
     assert(m_range.size >= sizeof(u32));
     assert((m_range.size % m_range.alignment) == 0);
-}
-```
- - - `Allocator::~Allocator()` is the destructor for the `Allocator` class.
-```cpp
-Allocator::~Allocator()
-{
 }
 ```
  - - `void Allocator::setParent(Allocator *parent)` takes a pointer to an `Allocator` object and sets the `m_parent` member to point to it.
@@ -619,9 +611,8 @@ Allocator::Result  PoolAllocator::releasePool(Pool  *pool)
 	return parentResult;
 }
 ```
-## <h2>1B. Describe its characteristics, numbers, duration, and dynamics.</h2>
-- The **SplitAllocator.cpp** is used in throughout FreeNOS in various classes like **Kernel.cpp**, **Process.cpp**, and **ProcessShares.cpp**, it is used in tandem with an additional class called **MemoryContext.cpp**. 
-- The name of the class **MemoryContext.cpp**, provides the gist of what it does. It represents a memory context , which is a container for memory ranges and their associated physical and virtual addresses. This call provies the methods for allocating and deallocating memory, in addition to mapping physical memory to virtual memory. It does this by passing a **SplitAllocator.cpp** object and a **MemoryMap.cpp** object in its constructor. The **MemoryMap.cpp** object provides infromation about the memory layout of the operating system, and the **SplitAllocator.cpp** object does the allocating and deallocating of memory.
+- The **SplitAllocator.cpp** is used in throughout FreeNOS in various classes like **Kernel.cpp**, **Process.cpp**, and **ProcessShares.cpp**, it is used in tandem with additional classes called **MemoryContext.cpp** and **MemoryChannel.cpp**. 
+- The name of the class **MemoryContext.cpp**, provides the gist of what it does. It represents a memory context , which is a container for memory ranges and their associated physical and virtual addresses. This call provies the methods for allocating and deallocating memory, in addition to mapping physical memory to virtual memory. It does this by passing a **SplitAllocator.cpp** object and a **MemoryMap.cpp** object in its constructor. The **MemoryMap.cpp** object provides infromation about the memory layout of the operating system, and the **SplitAllocator.cpp** object does the allocating and deallocating of memory. Before any of these processes occur, **Memory.cpp** is called to clear the .bss section of the program's memory to clear any uninitialized variables that may have been modified when the program was executed.
 ```cpp
 MemoryContext::MemoryContext(MemoryMap *map, SplitAllocator *alloc)
 	: m_alloc(alloc)
@@ -688,47 +679,72 @@ void  MemoryContext::mapRangeSparseCallback(Address  *phys)
 	assert(r == Success);
 }
 ```
-- In addtion to these functions **
-
-PoolAllocator is used primarily in runtime
-#### *- Characteristics*
- - Allocator.cpp and 
-#### *- Numbers*
-#### *- Duration*
-#### *- Dynamics*
-# <h1>2. Discussion and Analysis</h1>
-    
-    -   Analyze the advantages and disadvantages of the memory management system used in FreeNOS.
-    -   Discuss how it compares to other memory management systems.
-# <h1>Conclusion</h1>
-    
-    -   Summarize your findings and observations.
-# <h1>References</h1>
-    -   List any sources you used during your research.
-
-
-## UML diagrams
-
-You can render UML diagrams using [Mermaid](https://mermaidjs.github.io/). For example, this will produce a sequence diagram:
-
-```mermaid
-sequenceDiagram
-Alice ->> Bob: Hello Bob, how are you?
-Bob-->>John: How about you John?
-Bob--x Alice: I am good thanks!
-Bob-x John: I am good thanks!
-Note right of John: Bob thinks a long<br/>long time, so long<br/>that the text does<br/>not fit on a row.
-
-Bob-->Alice: Checking with John...
-Alice->John: Yes... John, how are you?
+- In addtion to these functions **MemoryContext**  also unmaps virtual memory with the `unMapRange()` function, releases the physical memory page that corresponds to the given virtual address witht the `release()` function, and finds free blocks of virtual memory of a specified size, within a sepcified region of the current process's memory map with the `findFree()` function.
+- **MemoryMap.cpp** is used by **MemoryContext.cpp** to  create the memory layout of the operating system. It defines the region for the different regions in the system, returns and sets the memory range each given region.
+```cpp
+MemoryMap::MemoryMap(const MemoryMap &map
+{
+	setRange(KernelData, map.m_regions[KernelData]);
+	setRange(KernelPrivate, map.m_regions[KernelPrivate]);
+	setRange(UserData, map.m_regions[UserData]);
+	setRange(UserHeap, map.m_regions[UserHeap]);
+	setRange(UserStack, map.m_regions[UserStack]);
+	setRange(UserPrivate, map.m_regions[UserPrivate]);
+	setRange(UserShare, map.m_regions[UserShare]);
+	setRange(UserArgs, map.m_regions[UserArgs]);
+}
+Memory::Range  MemoryMap::range(MemoryMap::Region  region) const
+{
+	return  m_regions[region];
+}
+void  MemoryMap::setRange(Region  region, Memory::Range  range)
+{
+	m_regions[region] = range;
+}
 ```
+- **MemoryChannel.cpp** is used for communication between producer and consumer. By applying reading and writing function between the two, via circular buffer.
+- - `MemoryChannel::MemoryChannel(const  Channel::Mode mode, const Size messageSize)` is the constructor of the class and dictates which functions will be used when called and the size of the message being transmitted. It will also call the reset function, where depending on the mode and if it is starting or continuing a correspondence between producer or consumer.
+```cpp
+MemoryChannel::MemoryChannel(const  Channel::Mode mode, const Size messageSize)
+: Channel(mode, messageSize) , m_maximumMessages((PAGESIZE / messageSize) -  1U)
+{
+	assert(messageSize >=  sizeof(RingHead));
+	assert(messageSize < (PAGESIZE /  2));
+	reset(true);
+}
+MemoryChannel::Result  MemoryChannel::reset(const  bool  hardReset)
+{
+	if (hardReset)
+	{
+		MemoryBlock::set(&m_head, 0, sizeof(m_head));
+	}
+	else  if (m_mode ==  Channel::Producer)
+	{
+		m_data.read(0, sizeof(m_head), &m_head);
+	}
+	else  if (m_mode ==  Channel::Consumer)
+	{
+		m_feedback.read(0, sizeof(m_head), &m_head);
 
-And this will produce a flow chart:
+	}
+	return Success;
+}
+``` 
+- The two functions `setVirtual()` and `setPhysical()` sets the virtual and physical addresses of two memory blocks ans also calls the `reset()` function to initialize the channel with the new base address. The only difference is that the physical addresses in `setPhysical()` also get mapped to virtual addresses.
+- In addition to these functions **MemoryChannel.cpp** also has functions like `flush()` and `flushPage()`, that flushes the cache for the memory block that was last written to and depending if it is being called in kernel mode, it may flush directly or by system call. There is also `unmap()` which unmaps the producer or consumer data. 
+## <h2>Analysis</h2>
+- The memory manage system in FreeNOS is a combination of paging and segmentation that can react dynamically depending on what is needed by the operating system. Its advantages are that compared to other memory management systems it is very simple and not that complex. Since it is operating in a small environment. It also able to communicate between processes that are happening in real time. 
+- One disadvantage is that it does not manage memory fragmentation, since it is a smaller opersting system that is not that much of a problem. However, if a processing is long-running memory fragmentation will occur and possibly crash the system. Another disadvantage is that it is limited in capacity, so for processes that require a lot more data to be transferred, it will be inefficient. 
+- Compared to other management systems that can handle bigger processes and implement more complex algorithms for memory, FreeNOS is more suitable for systems that do not require a large overhead. Like Minix3, FreeNOS is a mini-kernel, but unlike FreeNOS Minix3 can allow processes to transfer more data data than FreeNOS. 
+## <h2>In short...</h2>
+- By using different allocators and various memory classes FreeNOS is able to manage both physical and virtual memory. By using the base classes **Allocator.cpp** and **BitAllocator.cpp**, **SplitAllocator.cpp**, **BubbleAllocator.cpp**, and **PoolAllocator.cpp** are able to apply their own memory allocation themes. They do this with help from the memory classes, **Memory.cpp**, **MemoryContext.cpp**, **MemoryMap.cpp**, and **MemoryChannel.cpp**. FreeNOS uses a combination of paging and segmentation to divide memory into fixed pages while segmentation divides memory into logical segments. Depending on the work load the management system can use the different allocators and memory classes dynamically and the duration of allocation and deallocation may vary depending on the workload as well.
 
-```mermaid
-graph LR
-A[Square Rect] -- Link text --> B((Circle))
-A --> C(Round Rect)
-B --> D{Rhombus}
-C --> D
-```
+### <h1>References</h1>
+    - https://wiki.minix3.org/doku.php?id=developersguide:memorygrants#implementation_of_memory_grants
+    - http://www.freenos.org/doxygen/files.html
+    - https://pages.cs.wisc.edu/~ganoop/cs537/minikernel.html
+    - https://www.slideshare.net/adnansalihbegovic2/mini-kernel
+    - https://www.cs.uic.edu/~spopuri/minios.html
+    - https://openai.com/blog/chatgpt
+    - https://docs.kernel.org/admin-guide/mm/index.html
+    - https://www.tutorialspoint.com/operating_system/os_memory_management.htm
